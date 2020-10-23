@@ -23,6 +23,9 @@ CYF = 1  # delete when handing in.
 use_gpu = True
 act_rpt = 5
 
+
+EPSILON = 0.0001
+
 class DQNAgent:
     def __init__(self, state_size, action_size):
         # if you want to see MsPacman learning, then change to True
@@ -111,6 +114,13 @@ class DQNAgent:
             return
         batch_size = min(self.batch_size, len(self.memory))
         mini_batch = self.memory[0:batch_size]
+        mini_batch_array = np.array(mini_batch,dtype="float64")
+        mini_batch_array_mean = np.mean(mini_batch_array,axis=0)
+        mini_batch_array_variance = np.var(mini_batch_array,axis=0)
+        mini_batch_array_normalized = (mini_batch_array - mini_batch_array_mean)/(np.sqrt(mini_batch_array_variance+EPSILON))
+
+
+
 
         # mini_batch = random.sample(self.memory, batch_size)
 
@@ -119,11 +129,11 @@ class DQNAgent:
         action, reward, done = [], [], []
 
         for i in range(self.batch_size):
-            update_input[i] = mini_batch[i][0]
-            action.append(mini_batch[i][1])
-            reward.append(mini_batch[i][2])
-            update_target[i] = mini_batch[i][3]
-            done.append(mini_batch[i][4])
+            update_input[i] = mini_batch_array_normalized[i][0]
+            action.append(mini_batch_array_normalized[i][1])
+            reward.append(mini_batch_array_normalized[i][2])
+            update_target[i] = mini_batch_array_normalized[i][3]
+            done.append(mini_batch_array_normalized[i][4])
 
         target = self.model_eval.predict(update_input)
         target_val = self.model_target.predict(update_target)
