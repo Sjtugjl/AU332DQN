@@ -15,10 +15,14 @@ from keras.optimizers import Adam
 from keras.models import Sequential
 from gym import wrappers
 from utils import *
+from queue import PriorityQueue
 
 # hyper-parameter.  
-EPISODES = 5000
+EPISODES = 500
+CYF = 1#delete when handing in.
 use_gpu = True
+
+
 class DQNAgent:
     def __init__(self, state_size, action_size):
         # if you want to see MsPacman learning, then change to True
@@ -43,6 +47,8 @@ class DQNAgent:
         # create replay memory using deque
         self.maxlen = 8000 
         self.memory = deque(maxlen=self.maxlen)
+        #self.priority_memory = PriorityQueue(maxsize=self.maxlen)
+        self.memory_list = []
 
         # create main model
         self.model_target = self.build_model()
@@ -75,9 +81,21 @@ class DQNAgent:
             q_value = self.model_eval.predict(state)
             return np.argmax(q_value[0])
 
+    def choose_reward(self,i):
+        return i[2]
+
+
     # save sample <s,a,r,s'> to the replay memory
     def append_sample(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
+        #self.memory.append((state, action, reward, next_state, done))
+        #self.priority_memory.put((-1*reward, action, state, next_state, done))
+        if len(self.memory_list) < self.maxlen:
+            self.memory_list.append((state, action, reward, next_state, done))
+            self.memory_list.sort(key=self.choose_reward,reverse=True)
+        else:
+            self.memory_list[self.maxlen-1] = (state, action, reward, next_state, done)
+            self.memory_list.sort(key=self.choose_reward,reverse=True)
+
 
     def epsilon_decay(self):
         if len(self.memory) < self.train_start:
@@ -93,7 +111,9 @@ class DQNAgent:
         if len(self.memory) < self.train_start:
             return
         batch_size = min(self.batch_size, len(self.memory))
-        mini_batch = random.sample(self.memory, batch_size)
+        mini_batch = self.memory[0:batch_size]
+
+        #mini_batch = random.sample(self.memory, batch_size)
 
         update_input = np.zeros((batch_size, self.state_size))
         update_target = np.zeros((batch_size, self.state_size))
@@ -128,7 +148,7 @@ if __name__ == "__main__":
     # load the gym env
     env = gym.make('MsPacman-ram-v0')
     # set  random seeds to get reproduceable result(recommended)
-    set_random_seed(0)
+    set_random_seed(0,cyf=CYF)
     # get size of state and action from environment
     state_size = env.observation_space.shape[0]
     action_size = env.action_space.n
@@ -196,6 +216,7 @@ if __name__ == "__main__":
         if e%avg_length == 0:
             graph_episodes.append(e)
             graph_score.append(sum_score / avg_length)
+            print(sum_score/avg_length)
             sum_score = 0
             # plot the reward each avg_length episodes
             pylab.plot(graph_episodes, graph_score, 'r')
